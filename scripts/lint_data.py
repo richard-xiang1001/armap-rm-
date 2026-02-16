@@ -66,6 +66,23 @@ def dedup_keep_order(items: List[str]) -> List[str]:
     return out
 
 
+def parse_optional_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        if value == 1:
+            return True
+        if value == 0:
+            return False
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in {"true", "1", "yes", "y"}:
+            return True
+        if v in {"false", "0", "no", "n"}:
+            return False
+    return None
+
+
 def truncation_visible(text: str, marker: str, max_len: int) -> bool:
     if marker not in text:
         return False
@@ -159,6 +176,24 @@ def main() -> None:
         default=0.05,
         help="Threshold used with --fail_on_truncation_risk.",
     )
+    ap.add_argument("--fail_on_low_replay_ok", action="store_true", help="Exit non-zero when replay success rate is too low.")
+    ap.add_argument(
+        "--min_replay_ok_rate",
+        type=float,
+        default=0.0,
+        help="Threshold used with --fail_on_low_replay_ok.",
+    )
+    ap.add_argument(
+        "--fail_on_low_env_consistency",
+        action="store_true",
+        help="Exit non-zero when env_judge_consistency is too low.",
+    )
+    ap.add_argument(
+        "--min_env_judge_consistency",
+        type=float,
+        default=0.0,
+        help="Threshold used with --fail_on_low_env_consistency.",
+    )
     ap.add_argument(
         "--report_path",
         type=str,
@@ -193,6 +228,10 @@ def main() -> None:
     truncation_risk_rows = 0
     truncation_risk_last_k_rows = 0
     rows_with_step_markers = 0
+    neg_replay_attempted = 0
+    neg_replay_ok_count = 0
+    env_consistency_rows = 0
+    env_consistency_ok = 0
 
     instr_lens: List[int] = []
     pos_lens: List[int] = []
@@ -256,7 +295,28 @@ def main() -> None:
         if pos_tail_truncated or neg_tail_truncated:
             truncation_risk_last_k_rows += 1
 
+        meta = obj.get("meta", {})
+        if isinstance(meta, dict):
+            replay_attempted_val = parse_optional_bool(meta.get("replay_attempted"))
+            if replay_attempted_val is None:
+                # Compatibility fallback for data that only records neg_type.
+                replay_attempted_val = str(meta.get("neg_type", "")).strip().lower() == "replay_corrupt"
+            replay_ok_val = parse_optional_bool(meta.get("replay_ok"))
+            env_consistent_val = parse_optional_bool(meta.get("env_judge_consistent"))
+
+            if replay_attempted_val:
+                neg_replay_attempted += 1
+                if replay_ok_val is True:
+                    neg_replay_ok_count += 1
+
+            if env_consistent_val is not None:
+                env_consistency_rows += 1
+                if env_consistent_val:
+                    env_consistency_ok += 1
+
     n_rows = len(rows)
+    neg_replay_success_rate = float(neg_replay_ok_count / max(neg_replay_attempted, 1))
+    env_judge_consistency = float(env_consistency_ok / max(env_consistency_rows, 1))
     report = {
         "path": str(path),
         "n_rows": n_rows,
@@ -281,6 +341,13 @@ def main() -> None:
         "rows_with_step_markers": rows_with_step_markers,
         "truncation_risk_last_k_steps": float(truncation_risk_last_k_rows / max(n_rows, 1)),
         "max_truncation_risk_last_k_steps": args.max_truncation_risk_last_k_steps,
+        "neg_replay_attempted": neg_replay_attempted,
+        "neg_replay_ok_count": neg_replay_ok_count,
+        "neg_replay_success_rate": neg_replay_success_rate,
+        "min_replay_ok_rate": args.min_replay_ok_rate,
+        "env_judge_consistency": env_judge_consistency,
+        "env_judge_consistency_rows": env_consistency_rows,
+        "min_env_judge_consistency": args.min_env_judge_consistency,
     }
 
     if args.report_path:
@@ -299,6 +366,10 @@ def main() -> None:
         args.fail_on_truncation_risk
         and report["truncation_risk_last_k_steps"] > args.max_truncation_risk_last_k_steps
     ):
+        should_fail = True
+    if args.fail_on_low_replay_ok and report["neg_replay_success_rate"] < args.min_replay_ok_rate:
+        should_fail = True
+    if args.fail_on_low_env_consistency and report["env_judge_consistency"] < args.min_env_judge_consistency:
         should_fail = True
     if should_fail:
         sys.exit(1)

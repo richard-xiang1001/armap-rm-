@@ -9,6 +9,11 @@ v0.2.1 acceptance reference (AutoDL RTX 4090) has validated this end-to-end guar
 - acceptance artifact report: `data/real/reports/v021_acceptance.json` with `passed=true`
 Version guidance: recommended reference tag is `v0.2.3`; `v0.2.1` is the first acceptance milestone, and `v0.2.2` is an occupied immutable tag.
 
+v0.3.x adds ARMAP-style data and input-shape alignment:
+- v0.3.0: generated executable negatives (`replay_corrupt -> swap_step -> truncate`) + arithmetic env judge + new replay/consistency gates
+- v0.3.1: stepwise input formatting (`<OBS>/<ACT>/<RES>`) + selectable reward pooling (`mean/last/last_k_step`)
+- v0.3.2 (optional scaffold): lightweight multimodal wrapper (`rm/vlm`) and `webshop_like` adapter
+
 Scope (this repro):
 - ✅ Build an RM that scores (instruction, trajectory) pairs.
 - ✅ Train with **pairwise preference loss** on (pos, neg) trajectory pairs.
@@ -182,6 +187,81 @@ You should see:
 - `pair_accuracy` > 0.5 (better than random)
 - a positive average `reward_gap = R(pos)-R(neg)`
 - `gap_p10/p50/p90` to inspect reward-gap distribution stability
+
+## v0.3.0 Acceptance (ARMAP-style negatives + replay/judge gate)
+
+Run one command for:
+- `build_pairs_v030 -> sanitize -> lint(gate) -> train/eval -> CPU/GPU parity`
+- additional gate metrics:
+  - `neg_replay_success_rate`
+  - `env_judge_consistency`
+
+```bash
+python3 scripts/run_v030_acceptance.py \
+  --raw_path data/raw/episodes_real.jsonl \
+  --adapter generic_jsonl \
+  --work_dir data/real \
+  --results_dir results/v030_real \
+  --max_pairs 5500 \
+  --target_train_size 5000 \
+  --target_valid_size 500 \
+  --max_len 512 \
+  --batch_size 256 \
+  --epochs 3 \
+  --max_steps 4000 \
+  --device cuda \
+  --amp_dtype bf16 \
+  --num_workers 4
+```
+
+Report output:
+- `data/real/reports/v030_acceptance.json`
+- official 4090 evidence handoff: `docs/runbooks/v030_acceptance_remote.md`
+- latest 4090 precheck evidence: `data/real_v030_precheck/reports/v030_acceptance.json` (`passed=true`)
+
+## v0.3.1 Input Format + Pooling Switches
+
+`rm.train` and `rm.eval` now support:
+- `--input_format {flat,stepwise}`
+- `--pooling {mean,last,last_k_step}`
+- `--last_k_steps_pool`
+- `--use_refined_instruction {true,false}`
+
+Example:
+
+```bash
+python3 -m rm.train \
+  --train_path data/real/train.jsonl \
+  --valid_path data/real/valid.jsonl \
+  --save_dir results/v031_stepwise \
+  --max_len 512 \
+  --batch_size 256 \
+  --device cuda \
+  --amp_dtype bf16 \
+  --input_format stepwise \
+  --pooling last_k_step \
+  --last_k_steps_pool 3
+```
+
+## v0.3.x Ablation Runner
+
+Single-variable ablations across:
+- neg type: `truncate_last_k/replay_corrupt/swap_step`
+- instruction: `raw/refined`
+- format: `flat/stepwise`
+- pooling: `mean/last/last_k_step`
+
+```bash
+python3 scripts/run_ablation_v03x.py \
+  --raw_path data/raw/episodes_real.jsonl \
+  --adapter generic_jsonl \
+  --work_dir data/ablation/v03x \
+  --results_dir results/ablation/v03x
+```
+
+Outputs:
+- `results/ablation/v03x/v03x_ablation.csv`
+- `results/ablation/v03x/v03x_ablation.md`
 
 ## What is being learned?
 The RM learns a scalar scoring function **R(x, h)** such that for the same instruction *x*,

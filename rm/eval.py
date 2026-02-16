@@ -19,6 +19,8 @@ def main() -> None:
     ap.add_argument("--max_len", type=int, default=512)
     ap.add_argument("--batch_size", type=int, default=128)
     ap.add_argument("--num_workers", type=int, default=2)
+    ap.add_argument("--input_format", type=str, default="", choices=["", "flat", "stepwise"])
+    ap.add_argument("--use_refined_instruction", type=str, default="", choices=["", "true", "false"])
     args = ap.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -34,17 +36,24 @@ def main() -> None:
         num_layers=cfg["num_layers"],
         dropout=cfg["dropout"],
         pad_id=cfg["pad_id"],
+        pooling=cfg.get("pooling", "mean"),
+        last_k_steps_pool=cfg.get("last_k_steps_pool", 3),
     ).to(device)
     model.load_state_dict(ckpt["state_dict"], strict=True)
     model.eval()
 
-    ds = PreferencePairDataset(args.valid_path)
+    use_refined = cfg.get("use_refined_instruction", True)
+    if args.use_refined_instruction:
+        use_refined = args.use_refined_instruction == "true"
+    input_format = args.input_format or cfg.get("input_format", "flat")
+
+    ds = PreferencePairDataset(args.valid_path, use_refined_instruction=use_refined)
     loader = DataLoader(
         ds,
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers,
-        collate_fn=PairCollator(tok, max_len=args.max_len),
+        collate_fn=PairCollator(tok, max_len=args.max_len, input_format=input_format, last_k_steps_pool=cfg.get("last_k_steps_pool", 3)),
         pin_memory=torch.cuda.is_available(),
     )
 
@@ -57,8 +66,14 @@ def main() -> None:
         for batch in loader:
             pos_ids = batch["pos_ids"].to(device)
             neg_ids = batch["neg_ids"].to(device)
-            r_pos = model(pos_ids)
-            r_neg = model(neg_ids)
+            pos_step_mask = batch.get("pos_step_mask")
+            neg_step_mask = batch.get("neg_step_mask")
+            if pos_step_mask is not None:
+                pos_step_mask = pos_step_mask.to(device)
+            if neg_step_mask is not None:
+                neg_step_mask = neg_step_mask.to(device)
+            r_pos = model(pos_ids, step_mask=pos_step_mask)
+            r_neg = model(neg_ids, step_mask=neg_step_mask)
             delta = (r_pos - r_neg).detach().cpu().numpy()
             correct += (r_pos > r_neg).sum().item()
             total += r_pos.numel()

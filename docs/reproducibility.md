@@ -174,3 +174,80 @@ Expected acceptance report path:
 - Acceptance result:
   - `data/real/reports/v021_acceptance.json`
   - `passed = true`
+
+## v0.3.0 Acceptance Command (ARMAP-style negatives + parity)
+
+Run this acceptance script and archive its report:
+
+```bash
+python3 scripts/run_v030_acceptance.py \
+  --raw_path data/raw/episodes_real.jsonl \
+  --adapter generic_jsonl \
+  --work_dir data/real \
+  --results_dir results/v030_real \
+  --max_pairs 5500 \
+  --target_train_size 5000 \
+  --target_valid_size 500 \
+  --max_len 512 \
+  --batch_size 256 \
+  --epochs 3 \
+  --max_steps 4000 \
+  --device cuda \
+  --amp_dtype bf16 \
+  --num_workers 4
+```
+
+Expected acceptance report path:
+- `data/real/reports/v030_acceptance.json`
+
+New gate checks in v0.3.0:
+- `neg_replay_success_rate >= 0.8`
+- `env_judge_consistency >= 0.95`
+
+Remote execution handbook:
+- `docs/runbooks/v030_acceptance_remote.md`
+
+## v0.3.0 Reference Run (2026-02-16, AutoDL 4090, Precheck Dataset)
+
+- Date: 2026-02-16
+- Git commit hash: `c474f1a`
+- Host: AutoDL
+- Python version: 3.10 (`.venv`)
+- CUDA available: true
+- CUDA device count: 1
+- CUDA device model: NVIDIA GeForce RTX 4090
+- NVIDIA driver / CUDA (system): 560.35.03 / 12.6
+- Dataset path and size:
+  - `data/raw/example_episodes_v030.jsonl`: 12,000 episodes
+  - `data/real_v030_precheck/pairs.unsanitized.jsonl`: 5,500 rows
+  - `data/real_v030_precheck/pairs.sanitized.jsonl`: 5,500 rows
+  - `data/real_v030_precheck/train.jsonl`: 5,000 rows
+  - `data/real_v030_precheck/valid.jsonl`: 500 rows
+- Acceptance command:
+  - `python3 scripts/run_v030_acceptance.py --raw_path data/raw/example_episodes_v030.jsonl --adapter generic_jsonl --work_dir data/real_v030_precheck --results_dir results/v030_precheck --max_pairs 5500 --target_train_size 5000 --target_valid_size 500 --max_len 512 --batch_size 256 --epochs 3 --max_steps 4000 --device cuda --amp_dtype bf16 --num_workers 4 --min_pair_accuracy 0.55 --min_gap_p50 0.0 --min_replay_ok_rate 0.8 --min_env_judge_consistency 0.95`
+- Gate checks (`data/real_v030_precheck/reports/train_lint.json`):
+  - `rows_with_missing = 0`
+  - `leak_hit_count = 0`
+  - `truncation_risk_last_k_steps = 0.0`
+  - `neg_replay_success_rate = 1.0`
+  - `env_judge_consistency = 1.0`
+- Key outputs (`results/v030_precheck` + eval):
+  - best valid `pair_accuracy = 0.578`
+  - eval:
+    - `pair_accuracy = 0.582`
+    - `avg_reward_gap = 0.0035885519981384275`
+    - `gap_p10 = -0.01506007555872202`
+    - `gap_p50 = 0.0026562009006738663`
+    - `gap_p90 = 0.02276899665594101`
+    - `n = 500`
+- CPU/GPU parity:
+  - GPU eval `pair_accuracy = 0.582`
+  - CPU eval `pair_accuracy = 0.582`
+  - `abs(pair_acc_gpu - pair_acc_cpu) = 0.0`
+- Acceptance result:
+  - `data/real_v030_precheck/reports/v030_acceptance.json`
+  - `passed = true`
+
+Note:
+- This record is a 4090 precheck run using generated `example_episodes_v030.jsonl`.
+- Official publication-grade evidence should additionally include a run with `data/raw/episodes_real.jsonl` once available.

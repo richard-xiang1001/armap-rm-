@@ -146,6 +146,47 @@ python3 ingest/sanitize_traj.py \
   --audit_path data/real/reports/sanitize_audit.json
 ```
 
+### 3.4 v0.3.0 ARMAP 风格负例构造（推荐）
+
+新增脚本：`scripts/build_pairs_v030.py`
+
+固定流程：
+1. `load episodes`
+2. `refine instruction`（规则法）
+3. 负例生成（`replay_corrupt -> swap_step -> truncate_last_k`）
+4. 环境判定（当前默认：算术 env judge）
+5. 写出 pair + meta
+
+新增 `meta` 字段（兼容旧 schema）：
+- `construction_method`
+- `neg_type`
+- `replay_ok`
+- `replay_attempted`
+- `env_judge_pos`
+- `env_judge_neg`
+- `env_judge_consistent`
+- `instruction_refine_mode`
+- `instruction_refine_changed`
+
+示例：
+
+```bash
+python3 scripts/build_pairs_v030.py \
+  --input_path data/raw/example_episodes_v021.jsonl \
+  --output_path data/real/pairs.unsanitized.jsonl \
+  --adapter generic_jsonl \
+  --max_pairs 5500 \
+  --stats_path data/real/reports/export_stats_v030.json
+```
+
+`lint_data.py` 新增 gate 指标：
+- `neg_replay_success_rate`
+- `env_judge_consistency`
+
+对应阈值参数：
+- `--fail_on_low_replay_ok --min_replay_ok_rate`
+- `--fail_on_low_env_consistency --min_env_judge_consistency`
+
 ---
 
 ## 4. 模型与输入拼接
@@ -168,6 +209,18 @@ python3 ingest/sanitize_traj.py \
   - linear head -> scalar reward
 
 > 这对应论文的“backbone + scalar head”结构，只是把多模态 VLM backbone 替换为轻量文本 backbone。
+
+### 4.3 v0.3.1 输入形态与 pooling 选项
+
+`rm.train/rm.eval` 新增：
+- `--input_format {flat,stepwise}`
+- `--pooling {mean,last,last_k_step}`
+- `--last_k_steps_pool`
+- `--use_refined_instruction {true,false}`
+
+当 `input_format=stepwise` 时，会将轨迹格式化为结构化 token（如 `<OBS>...</OBS>`、`<ACT>...</ACT>`、`<RES>...</RES>`），并保留 step marker。
+
+`pooling=last_k_step` 会优先聚合最后 K 步 token 区域；若样本无法提取 step 区域，自动回退到 `last`。
 
 ---
 
