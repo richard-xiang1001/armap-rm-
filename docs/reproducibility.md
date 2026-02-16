@@ -134,3 +134,43 @@ python3 scripts/run_v021_acceptance.py \
 
 Expected acceptance report path:
 - `data/real/reports/v021_acceptance.json`
+
+## v0.2.1 Reference Run (2026-02-16, AutoDL 4090)
+
+- Date: 2026-02-16
+- Git commit hash: (fill with release commit)
+- Host: AutoDL
+- CPU / RAM: 16 vCPU / 120GB
+- Python version: 3.10 (conda `armap-rm`)
+- CUDA available: true
+- CUDA device count: 1
+- CUDA device model: NVIDIA GeForce RTX 4090
+- NVIDIA driver / CUDA (system): 560.35.03 / 12.6
+- Dataset path and size:
+  - `data/raw/episodes_real.jsonl`: 12,000 episodes
+  - `data/real/pairs.unsanitized.jsonl`: 5,500 rows
+  - `data/real/pairs.sanitized.jsonl`: 5,500 rows
+  - `data/real/train.jsonl`: 5,000 rows
+  - `data/real/valid.jsonl`: 500 rows
+- Acceptance command:
+  - `python3 scripts/run_v021_acceptance.py --raw_path data/raw/episodes_real.jsonl --adapter generic_jsonl --work_dir data/real --results_dir results/v021_real --max_pairs 5500 --target_train_size 5000 --target_valid_size 500 --max_len 512 --batch_size 256 --epochs 3 --max_steps 4000 --device cuda --amp_dtype bf16 --num_workers 4`
+- Gate checks (from `data/real/reports/train_lint.json`):
+  - `rows_with_missing = 0`
+  - `leak_hit_count = 0`
+  - `truncation_risk_last_k_steps = 0.0`
+- Key outputs:
+  - best valid `pair_accuracy = 0.618`
+  - eval:
+    - `pair_accuracy = 0.618`
+    - `avg_reward_gap = 0.004093139052391052`
+    - `gap_p10 = -0.016657302156090736`
+    - `gap_p50 = 0.005510792136192322`
+    - `gap_p90 = 0.023761045187711716`
+    - `n = 500`
+- CPU/GPU parity:
+  - GPU eval `pair_accuracy = 0.618`
+  - CPU eval `pair_accuracy = 0.618`
+  - `abs(pair_acc_gpu - pair_acc_cpu) = 0.0 <= 0.03`
+- Acceptance result:
+  - `data/real/reports/v021_acceptance.json`
+  - `passed = true`
