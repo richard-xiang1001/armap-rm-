@@ -217,6 +217,7 @@ python3 scripts/run_v030_acceptance.py \
 Report output:
 - `data/real/reports/v030_acceptance.json`
 - official 4090 evidence handoff: `docs/runbooks/v030_acceptance_remote.md`
+- latest 4090 precheck evidence: `data/real_v030_precheck/reports/v030_acceptance.json` (`passed=true`)
 
 ## v0.3.1 Input Format + Pooling Switches
 

@@ -63,6 +63,9 @@ The format is based on Keep a Changelog, and this project follows semantic versi
   - `docs/training_details.md`
   - `docs/reproducibility.md`
   - `docs/runbooks/v030_acceptance_remote.md` (remote 4090 acceptance handbook)
+  - Recorded v0.3.0 4090 precheck evidence in:
+    - `docs/reproducibility.md`
+    - `docs/releases/v0.3.0.md`
 
 ## [v0.2.2] - 2026-02-16
 
