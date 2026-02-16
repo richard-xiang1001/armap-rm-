@@ -63,6 +63,15 @@ def parse_auto_bool(value: str, auto_value: bool) -> bool:
     return value == "true"
 
 
+def parse_bool_flag(value: str) -> bool:
+    v = value.strip().lower()
+    if v in {"true", "1", "yes", "y"}:
+        return True
+    if v in {"false", "0", "no", "n"}:
+        return False
+    raise ValueError(f"Invalid boolean flag value: {value}")
+
+
 @torch.no_grad()
 def evaluate(model: torch.nn.Module, loader: DataLoader, device: torch.device) -> Dict[str, float]:
     model.eval()
@@ -74,8 +83,14 @@ def evaluate(model: torch.nn.Module, loader: DataLoader, device: torch.device) -
     for batch in loader:
         pos_ids = batch["pos_ids"].to(device)
         neg_ids = batch["neg_ids"].to(device)
-        r_pos = model(pos_ids)
-        r_neg = model(neg_ids)
+        pos_step_mask = batch.get("pos_step_mask")
+        neg_step_mask = batch.get("neg_step_mask")
+        if pos_step_mask is not None:
+            pos_step_mask = pos_step_mask.to(device)
+        if neg_step_mask is not None:
+            neg_step_mask = neg_step_mask.to(device)
+        r_pos = model(pos_ids, step_mask=pos_step_mask)
+        r_neg = model(neg_ids, step_mask=neg_step_mask)
         loss = pairwise_loss(r_pos, r_neg)
         gap = (r_pos - r_neg).detach().cpu().numpy()
         gaps.append(gap)
@@ -114,6 +129,10 @@ def main() -> None:
     ap.add_argument("--pin_memory", type=str, choices=["auto", "true", "false"], default="auto")
     ap.add_argument("--prefetch_factor", type=int, default=2)
     ap.add_argument("--persistent_workers", type=str, choices=["auto", "true", "false"], default="auto")
+    ap.add_argument("--input_format", type=str, choices=["flat", "stepwise"], default="flat")
+    ap.add_argument("--pooling", type=str, choices=["mean", "last", "last_k_step"], default="mean")
+    ap.add_argument("--last_k_steps_pool", type=int, default=3)
+    ap.add_argument("--use_refined_instruction", type=str, choices=["true", "false"], default="true")
 
     ap.add_argument("--d_model", type=int, default=128)
     ap.add_argument("--hidden_size", type=int, default=128)
@@ -136,6 +155,7 @@ def main() -> None:
     amp_dtype_used = resolve_amp_dtype(args.amp_dtype, use_cuda=use_cuda)
     pin_memory = parse_auto_bool(args.pin_memory, auto_value=use_cuda)
     persistent_workers = parse_auto_bool(args.persistent_workers, auto_value=args.num_workers > 0)
+    use_refined_instruction = parse_bool_flag(args.use_refined_instruction)
 
     tok = CharTokenizer()
     model = TextRewardModel(
@@ -145,12 +165,19 @@ def main() -> None:
         num_layers=args.num_layers,
         dropout=args.dropout,
         pad_id=tok.pad_id,
+        pooling=args.pooling,
+        last_k_steps_pool=args.last_k_steps_pool,
     ).to(device)
 
-    train_ds = PreferencePairDataset(args.train_path)
-    valid_ds = PreferencePairDataset(args.valid_path)
+    train_ds = PreferencePairDataset(args.train_path, use_refined_instruction=use_refined_instruction)
+    valid_ds = PreferencePairDataset(args.valid_path, use_refined_instruction=use_refined_instruction)
 
-    collate = PairCollator(tok, max_len=args.max_len)
+    collate = PairCollator(
+        tok,
+        max_len=args.max_len,
+        input_format=args.input_format,
+        last_k_steps_pool=args.last_k_steps_pool,
+    )
 
     loader_kwargs = {
         "num_workers": args.num_workers,
@@ -204,6 +231,12 @@ def main() -> None:
         for batch_idx, batch in enumerate(pbar):
             pos_ids = batch["pos_ids"].to(device)
             neg_ids = batch["neg_ids"].to(device)
+            pos_step_mask = batch.get("pos_step_mask")
+            neg_step_mask = batch.get("neg_step_mask")
+            if pos_step_mask is not None:
+                pos_step_mask = pos_step_mask.to(device)
+            if neg_step_mask is not None:
+                neg_step_mask = neg_step_mask.to(device)
 
             batch_samples = pos_ids.size(0)
             batch_tokens = int((pos_ids != tok.pad_id).sum().item() + (neg_ids != tok.pad_id).sum().item())
@@ -218,8 +251,8 @@ def main() -> None:
                 autocast_ctx = nullcontext()
 
             with autocast_ctx:
-                r_pos = model(pos_ids)
-                r_neg = model(neg_ids)
+                r_pos = model(pos_ids, step_mask=pos_step_mask)
+                r_neg = model(neg_ids, step_mask=neg_step_mask)
                 raw_loss = pairwise_loss(r_pos, r_neg)
                 loss = raw_loss / args.grad_accum_steps
 
@@ -293,6 +326,10 @@ def main() -> None:
                         "dropout": args.dropout,
                         "pad_id": tok.pad_id,
                         "max_len": args.max_len,
+                        "pooling": args.pooling,
+                        "last_k_steps_pool": args.last_k_steps_pool,
+                        "input_format": args.input_format,
+                        "use_refined_instruction": use_refined_instruction,
                     },
                 },
                 ckpt_path,

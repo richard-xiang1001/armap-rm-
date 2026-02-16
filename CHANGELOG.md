@@ -4,6 +4,66 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog, and this project follows semantic versioning.
 
+## [v0.3.2] - 2026-02-16
+
+### Added
+
+- Optional multimodal scaffolding:
+  - `rm/vlm/wrapper.py` with freeze-backbone + scalar-head layout
+  - `ingest/adapters/webshop_like.py` for Webshop-like multimodal episode logs
+- Release note: `docs/releases/v0.3.2.md`
+
+## [v0.3.1] - 2026-02-16
+
+### Added
+
+- Stepwise trajectory formatter:
+  - `rm/formatters/stepwise.py`
+- Pooling module:
+  - `rm/pooling.py` with `mean`, `last`, `last_k_step`
+
+### Changed
+
+- Extended RM train/eval interfaces:
+  - `--input_format {flat,stepwise}`
+  - `--pooling {mean,last,last_k_step}`
+  - `--last_k_steps_pool`
+  - `--use_refined_instruction {true,false}`
+- Updated checkpoint config to store v0.3.1 input/pooling settings.
+- Release note: `docs/releases/v0.3.1.md`
+
+## [v0.3.0] - 2026-02-16
+
+### Added
+
+- Added ARMAP-style pair-construction pipeline:
+  - `scripts/build_pairs_v030.py`
+  - `ingest/refine_instruction.py`
+  - `ingest/negatives/{replay_corrupt.py,swap_step.py,truncate.py,registry.py}`
+  - `ingest/envs/{base.py,arithmetic_env.py}`
+- Added v0.3.0 acceptance runner:
+  - `scripts/run_v030_acceptance.py`
+- Added v0.3.x ablation runner:
+  - `scripts/run_ablation_v03x.py`
+- Added release note: `docs/releases/v0.3.0.md`
+
+### Changed
+
+- Extended pair `meta` schema (backward-compatible):
+  - `construction_method`, `neg_type`, `replay_ok`, `replay_attempted`
+  - `env_judge_pos`, `env_judge_neg`, `env_judge_consistent`
+  - `instruction_refine_mode`, `instruction_refine_changed`
+- Extended `scripts/lint_data.py` with replay/env-consistency metrics and gates:
+  - `neg_replay_attempted`, `neg_replay_ok_count`, `neg_replay_success_rate`
+  - `env_judge_consistency`
+  - `--fail_on_low_replay_ok --min_replay_ok_rate`
+  - `--fail_on_low_env_consistency --min_env_judge_consistency`
+- Updated docs:
+  - `README.md`
+  - `docs/training_details.md`
+  - `docs/reproducibility.md`
+  - `docs/runbooks/v030_acceptance_remote.md` (remote 4090 acceptance handbook)
+
 ## [v0.2.2] - 2026-02-16
 
 ### Changed

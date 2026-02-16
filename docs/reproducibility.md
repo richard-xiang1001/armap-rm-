@@ -174,3 +174,80 @@ Expected acceptance report path:
 - Acceptance result:
   - `data/real/reports/v021_acceptance.json`
   - `passed = true`
+
+## v0.3.0 Acceptance Command (ARMAP-style negatives + parity)
+
+Run this acceptance script and archive its report:
+
+```bash
+python3 scripts/run_v030_acceptance.py \
+  --raw_path data/raw/episodes_real.jsonl \
+  --adapter generic_jsonl \
+  --work_dir data/real \
+  --results_dir results/v030_real \
+  --max_pairs 5500 \
+  --target_train_size 5000 \
+  --target_valid_size 500 \
+  --max_len 512 \
+  --batch_size 256 \
+  --epochs 3 \
+  --max_steps 4000 \
+  --device cuda \
+  --amp_dtype bf16 \
+  --num_workers 4
+```
+
+Expected acceptance report path:
+- `data/real/reports/v030_acceptance.json`
+
+New gate checks in v0.3.0:
+- `neg_replay_success_rate >= 0.8`
+- `env_judge_consistency >= 0.95`
+
+Remote execution handbook:
+- `docs/runbooks/v030_acceptance_remote.md`
+
+## v0.3.0 Reference Run (Template, RTX 4090)
+
+Fill this block after the official 4090 run is complete.
+
+- Date:
+- Git commit hash:
+- Host:
+- CPU / RAM:
+- Python version:
+- Torch version:
+- CUDA available:
+- CUDA device count:
+- CUDA device model:
+- NVIDIA driver / CUDA (system):
+- Dataset path and size:
+  - `data/raw/episodes_real.jsonl`:
+  - `data/real/pairs.unsanitized.jsonl`:
+  - `data/real/pairs.sanitized.jsonl`:
+  - `data/real/train.jsonl`:
+  - `data/real/valid.jsonl`:
+- Acceptance command:
+  - `python3 scripts/run_v030_acceptance.py ...`
+- Gate checks (`data/real/reports/train_lint.json`):
+  - `rows_with_missing =`
+  - `leak_hit_count =`
+  - `truncation_risk_last_k_steps =`
+  - `neg_replay_success_rate =`
+  - `env_judge_consistency =`
+- Key outputs (`results/v030_real` + eval):
+  - best valid `pair_accuracy =`
+  - eval:
+    - `pair_accuracy =`
+    - `avg_reward_gap =`
+    - `gap_p10 =`
+    - `gap_p50 =`
+    - `gap_p90 =`
+    - `n =`
+- CPU/GPU parity:
+  - GPU eval `pair_accuracy =`
+  - CPU eval `pair_accuracy =`
+  - `abs(pair_acc_gpu - pair_acc_cpu) =`
+- Acceptance result:
+  - `data/real/reports/v030_acceptance.json`
+  - `passed =`

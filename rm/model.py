@@ -6,6 +6,8 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
+from rm.pooling import pool_hidden
+
 
 class CharTokenizer:
     """Minimal character tokenizer.
@@ -51,7 +53,7 @@ class TextRewardModel(nn.Module):
     Architecture:
     - char embedding
     - BiGRU encoder
-    - masked mean pooling
+    - configurable pooling (mean/last/last_k_step)
     - scalar head -> reward
 
     This matches the *shape* of ARMAP RM: backbone -> scalar head.
@@ -65,9 +67,13 @@ class TextRewardModel(nn.Module):
         num_layers: int = 1,
         dropout: float = 0.1,
         pad_id: int = 0,
+        pooling: str = "mean",
+        last_k_steps_pool: int = 3,
     ):
         super().__init__()
         self.pad_id = pad_id
+        self.pooling = pooling
+        self.last_k_steps_pool = max(int(last_k_steps_pool), 1)
         self.emb = nn.Embedding(vocab_size, d_model, padding_idx=pad_id)
         self.rnn = nn.GRU(
             input_size=d_model,
@@ -80,15 +86,13 @@ class TextRewardModel(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.head = nn.Linear(hidden_size * 2, 1)
 
-    def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+    def forward(self, input_ids: torch.Tensor, step_mask: torch.Tensor | None = None) -> torch.Tensor:
         # input_ids: [B, T]
         mask = (input_ids != self.pad_id).float()  # [B, T]
         x = self.emb(input_ids)  # [B, T, D]
         h, _ = self.rnn(x)  # [B, T, 2H]
         h = self.dropout(h)
 
-        # masked mean pooling
-        denom = mask.sum(dim=1, keepdim=True).clamp_min(1.0)  # [B, 1]
-        pooled = (h * mask.unsqueeze(-1)).sum(dim=1) / denom  # [B, 2H]
+        pooled = pool_hidden(h=h, mask=mask, strategy=self.pooling, step_mask=step_mask)
         reward = self.head(pooled).squeeze(-1)  # [B]
         return reward
