@@ -13,7 +13,9 @@ Use the following checklist for every public run:
 - Torch version:
 - CUDA available:
 - CUDA device count:
+- CUDA device model:
 - Dataset path and size:
+- Data source type (synthetic / real episodes):
 - Train command:
 - Eval command:
 - Data lint command:
@@ -22,6 +24,10 @@ Use the following checklist for every public run:
   - `pair_accuracy`:
   - `avg_reward_gap`:
   - `gap_p10/p50/p90`:
+  - `samples_per_sec`:
+  - `tokens_per_sec`:
+  - `amp_dtype_used`:
+- CPU/GPU parity check (`|pair_acc_gpu - pair_acc_cpu|`):
 - Known constraints:
 - Notes:
 
@@ -58,3 +64,73 @@ Use the following checklist for every public run:
   - In restricted macOS/sandbox environments, default worker settings can fail with `torch_shm_manager ... Operation not permitted`; use `--num_workers 0`.
 - Notes:
   - A smoke run with `max_len=128` can truncate the `Final:` line and collapse preference signal; use `max_len=512` for this dataset.
+
+## v0.2.0 Reference Run Template (4090 + Real Episodes)
+
+Use this template for the v0.2.0 release report:
+
+- Date: YYYY-MM-DD
+- Git commit hash:
+- Host OS:
+- Python version:
+- Torch version:
+- CUDA available: true
+- CUDA device count:
+- CUDA device model: RTX 4090 (24GB)
+- Dataset path and size:
+  - `data/real/pairs.unsanitized.jsonl`:
+  - `data/real/pairs.sanitized.jsonl`:
+  - `data/real/train.jsonl`:
+  - `data/real/valid.jsonl`:
+- Export command:
+  - `python3 ingest/export_pairs.py ...`
+- Sanitize command:
+  - `python3 ingest/sanitize_traj.py ...`
+- Lint gate command:
+  - `python3 scripts/lint_data.py --fail_on_leak --fail_on_missing --fail_on_truncation_risk --max_truncation_risk_last_k_steps 0.05 ...`
+- Train command:
+  - `python3 -m rm.train --device cuda --amp_dtype bf16 --max_steps 200 ...`
+- Eval command:
+  - `python3 -m rm.eval ...`
+- Seed:
+- Gate checks:
+  - `rows_with_missing = 0`
+  - `leak_hit_count = 0`
+  - `truncation_risk_last_k_steps <= 0.05`
+- Key outputs:
+  - `pair_accuracy`:
+  - `avg_reward_gap`:
+  - `gap_p10/p50/p90`:
+  - `samples_per_sec`:
+  - `tokens_per_sec`:
+  - `amp_dtype_used`:
+- CPU/GPU parity:
+  - same seed/same valid set
+  - `abs(pair_acc_gpu - pair_acc_cpu) <= 0.03`
+- Known constraints:
+  - If CUDA wheel installation is blocked by network policy, use offline wheels and `pip install --no-index --find-links wheels -r requirements.txt`.
+
+## v0.2.1 Acceptance Command (5000/500 + Parity)
+
+Run this acceptance script and archive its report:
+
+```bash
+python3 scripts/run_v021_acceptance.py \
+  --raw_path data/raw/episodes_real.jsonl \
+  --adapter generic_jsonl \
+  --work_dir data/real \
+  --results_dir results/v021_real \
+  --max_pairs 5500 \
+  --target_train_size 5000 \
+  --target_valid_size 500 \
+  --max_len 512 \
+  --batch_size 256 \
+  --epochs 3 \
+  --max_steps 4000 \
+  --device cuda \
+  --amp_dtype bf16 \
+  --num_workers 4
+```
+
+Expected acceptance report path:
+- `data/real/reports/v021_acceptance.json`

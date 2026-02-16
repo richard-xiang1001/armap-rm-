@@ -148,6 +148,23 @@ def main() -> None:
     )
     ap.add_argument("--fail_on_leak", action="store_true", help="Exit non-zero when leakage is detected.")
     ap.add_argument("--fail_on_missing", action="store_true", help="Exit non-zero when required fields are missing.")
+    ap.add_argument(
+        "--fail_on_truncation_risk",
+        action="store_true",
+        help="Exit non-zero when truncation_risk_last_k_steps exceeds threshold.",
+    )
+    ap.add_argument(
+        "--max_truncation_risk_last_k_steps",
+        type=float,
+        default=0.05,
+        help="Threshold used with --fail_on_truncation_risk.",
+    )
+    ap.add_argument(
+        "--report_path",
+        type=str,
+        default="",
+        help="Optional path to save full lint report JSON.",
+    )
     args = ap.parse_args()
 
     path = Path(args.path)
@@ -263,7 +280,13 @@ def main() -> None:
         "last_k_steps": args.last_k_steps,
         "rows_with_step_markers": rows_with_step_markers,
         "truncation_risk_last_k_steps": float(truncation_risk_last_k_rows / max(n_rows, 1)),
+        "max_truncation_risk_last_k_steps": args.max_truncation_risk_last_k_steps,
     }
+
+    if args.report_path:
+        out_path = Path(args.report_path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     print(json.dumps(report, ensure_ascii=False))
 
@@ -271,6 +294,11 @@ def main() -> None:
     if args.fail_on_leak and leak_rows > 0:
         should_fail = True
     if args.fail_on_missing and missing_rows > 0:
+        should_fail = True
+    if (
+        args.fail_on_truncation_risk
+        and report["truncation_risk_last_k_steps"] > args.max_truncation_risk_last_k_steps
+    ):
         should_fail = True
     if should_fail:
         sys.exit(1)
