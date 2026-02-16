@@ -7,6 +7,7 @@ v0.2.1 acceptance reference (AutoDL RTX 4090) has validated this end-to-end guar
 - lightweight bf16 GPU training -> eval (`pair_accuracy>0.55`, `gap_p50>0`)
 - CPU/GPU parity check on the same checkpoint and validation split (`abs(diff)<=0.03`, observed `0.0`)
 - acceptance artifact report: `data/real/reports/v021_acceptance.json` with `passed=true`
+Version guidance: recommended reference tag is `v0.2.3`; `v0.2.1` is the first acceptance milestone, and `v0.2.2` is an occupied immutable tag.
 
 Scope (this repro):
 - ✅ Build an RM that scores (instruction, trajectory) pairs.
