@@ -17,7 +17,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from rm.data import PairCollator, PreferencePairDataset
+from rm.data import PairCollator, PreferencePairDataset, build_bucket_sampler
 from rm.model import CharTokenizer, TextRewardModel
 
 
@@ -133,6 +133,7 @@ def main() -> None:
     ap.add_argument("--pooling", type=str, choices=["mean", "last", "last_k_step"], default="mean")
     ap.add_argument("--last_k_steps_pool", type=int, default=3)
     ap.add_argument("--use_refined_instruction", type=str, choices=["true", "false"], default="true")
+    ap.add_argument("--bucket_sampling", type=str, choices=["true", "false"], default="false")
 
     ap.add_argument("--d_model", type=int, default=128)
     ap.add_argument("--hidden_size", type=int, default=128)
@@ -156,6 +157,7 @@ def main() -> None:
     pin_memory = parse_auto_bool(args.pin_memory, auto_value=use_cuda)
     persistent_workers = parse_auto_bool(args.persistent_workers, auto_value=args.num_workers > 0)
     use_refined_instruction = parse_bool_flag(args.use_refined_instruction)
+    use_bucket_sampling = parse_bool_flag(args.bucket_sampling)
 
     tok = CharTokenizer()
     model = TextRewardModel(
@@ -187,13 +189,18 @@ def main() -> None:
         loader_kwargs["prefetch_factor"] = args.prefetch_factor
         loader_kwargs["persistent_workers"] = persistent_workers
 
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=args.batch_size,
-        shuffle=True,
-        collate_fn=collate,
+    train_loader_kwargs = {
+        "batch_size": args.batch_size,
+        "collate_fn": collate,
         **loader_kwargs,
-    )
+    }
+    if use_bucket_sampling:
+        train_loader_kwargs["sampler"] = build_bucket_sampler(train_ds)
+        train_loader_kwargs["shuffle"] = False
+    else:
+        train_loader_kwargs["shuffle"] = True
+
+    train_loader = DataLoader(train_ds, **train_loader_kwargs)
     valid_loader = DataLoader(
         valid_ds,
         batch_size=args.batch_size,
@@ -330,6 +337,7 @@ def main() -> None:
                         "last_k_steps_pool": args.last_k_steps_pool,
                         "input_format": args.input_format,
                         "use_refined_instruction": use_refined_instruction,
+                        "bucket_sampling": use_bucket_sampling,
                     },
                 },
                 ckpt_path,

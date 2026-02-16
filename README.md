@@ -14,6 +14,11 @@ v0.3.x adds ARMAP-style data and input-shape alignment:
 - v0.3.1: stepwise input formatting (`<OBS>/<ACT>/<RES>`) + selectable reward pooling (`mean/last/last_k_step`)
 - v0.3.2 (optional scaffold): lightweight multimodal wrapper (`rm/vlm`) and `webshop_like` adapter
 
+v0.4.x extends this to real evidence and protocolized judge:
+- v0.4.0: real-log acceptance runner (`scripts/run_v040_real_acceptance.py`)
+- v0.4.1: env judge protocol/registry (`ingest/envs/protocol.py`, `ingest/envs/registry.py`)
+- v0.4.2: stronger hard negatives + bucket sampling + mismatch dumps + `run_ablation_v04x.py`
+
 Scope (this repro):
 - ✅ Build an RM that scores (instruction, trajectory) pairs.
 - ✅ Train with **pairwise preference loss** on (pos, neg) trajectory pairs.
@@ -262,6 +267,45 @@ python3 scripts/run_ablation_v03x.py \
 Outputs:
 - `results/ablation/v03x/v03x_ablation.csv`
 - `results/ablation/v03x/v03x_ablation.md`
+
+## v0.4.0 Real Evidence Acceptance
+
+```bash
+python3 scripts/run_v040_real_acceptance.py \
+  --raw_path data/raw/episodes_real_v040.jsonl \
+  --adapter real_logs_v1 \
+  --env_judge real_logs \
+  --work_dir data/real_v040 \
+  --results_dir results/v040_real \
+  --max_pairs 1200 \
+  --target_train_size 1000 \
+  --target_valid_size 200
+```
+
+Key v0.4 gates:
+- `env_judge_consistency >= 0.95`
+- `judge_unknown_rate <= 0.05`
+- `pair_accuracy > 0.55`, `gap_p50 > 0`
+
+Current reference status (2026-02-16):
+- quality gates pass on available sample (`judge_unknown_rate=0.0`, `env_judge_consistency=1.0`)
+- release-grade is blocked only by data scale (`pairs_trainable=31`, target `1200 -> 1000/200`)
+- blocker summary: `data/real_v040/reports/precheck_pairs_summary.json`
+
+## v0.4.x Ablation Runner
+
+```bash
+python3 scripts/run_ablation_v04x.py \
+  --raw_path data/raw/episodes_real_v040.jsonl \
+  --adapter real_logs_v1 \
+  --env_judge real_logs \
+  --work_dir data/ablation/v04x \
+  --results_dir results/ablation/v04x
+```
+
+Outputs:
+- `results/ablation/v04x/v04x_ablation.csv`
+- `results/ablation/v04x/v04x_ablation.md`
 
 ## What is being learned?
 The RM learns a scalar scoring function **R(x, h)** such that for the same instruction *x*,

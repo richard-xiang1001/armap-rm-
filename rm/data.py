@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Dict, Iterator, List, Tuple
 
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, WeightedRandomSampler
 
 from rm.formatters.stepwise import format_instruction, format_trajectory_stepwise, get_last_k_step_char_start
 
@@ -30,6 +30,15 @@ def _read_jsonl(path: str) -> Iterator[Dict]:
             yield json.loads(line)
 
 
+def _traj_len_bin(pos: str, neg: str) -> str:
+    ln = max(len(str(pos or "")), len(str(neg or "")))
+    if ln < 256:
+        return "short"
+    if ln < 1024:
+        return "medium"
+    return "long"
+
+
 class PreferencePairDataset(Dataset):
     def __init__(self, path: str, use_refined_instruction: bool = True):
         self.items: List[PairExample] = []
@@ -49,6 +58,28 @@ class PreferencePairDataset(Dataset):
 
     def __getitem__(self, idx: int) -> PairExample:
         return self.items[idx]
+
+    def sampling_weights(self, by_traj_len: bool = True, by_neg_type: bool = True, by_task_type: bool = True) -> List[float]:
+        groups: Dict[Tuple[str, str, str], int] = {}
+        keys: List[Tuple[str, str, str]] = []
+        for item in self.items:
+            meta = item.meta if isinstance(item.meta, dict) else {}
+            key_len = _traj_len_bin(item.pos, item.neg) if by_traj_len else "all"
+            key_neg = str(meta.get("neg_type", "unknown")) if by_neg_type else "all"
+            key_task = str(meta.get("task_type", meta.get("env", "unknown"))) if by_task_type else "all"
+            key = (key_len, key_neg, key_task)
+            keys.append(key)
+            groups[key] = groups.get(key, 0) + 1
+        if not keys:
+            return []
+        return [1.0 / float(groups[k]) for k in keys]
+
+
+def build_bucket_sampler(dataset: PreferencePairDataset) -> WeightedRandomSampler:
+    weights = dataset.sampling_weights(by_traj_len=True, by_neg_type=True, by_task_type=True)
+    if not weights:
+        return WeightedRandomSampler(weights=[1.0], num_samples=1, replacement=True)
+    return WeightedRandomSampler(weights=weights, num_samples=len(weights), replacement=True)
 
 
 class PairCollator:
@@ -98,7 +129,7 @@ class PairCollator:
             mask[eos_idx] = 1.0
         return mask
 
-    def __call__(self, batch: List[PairExample]) -> Dict[str, torch.Tensor]:
+    def __call__(self, batch: List[PairExample]) -> Dict[str, torch.Tensor | List[Dict] | List[str]]:
         pos_payloads = [self._format(b.instruction, b.pos) for b in batch]
         neg_payloads = [self._format(b.instruction, b.neg) for b in batch]
 
@@ -113,4 +144,8 @@ class PairCollator:
             "neg_ids": neg_ids,
             "pos_step_mask": pos_step_mask,
             "neg_step_mask": neg_step_mask,
+            "meta": [b.meta for b in batch],
+            "instruction": [str(b.instruction or "") for b in batch],
+            "traj_pos": [str(b.pos or "") for b in batch],
+            "traj_neg": [str(b.neg or "") for b in batch],
         }

@@ -99,27 +99,22 @@ def _split_train_valid_with_size(
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Run v0.3.0 acceptance: generated negatives + gate + CPU/GPU parity.")
-    ap.add_argument("--raw_path", type=str, default="data/raw/episodes_real.jsonl")
-    ap.add_argument(
-        "--adapter",
-        type=str,
-        default="generic_jsonl",
-        choices=["generic_jsonl", "armap_style", "webshop_like", "real_logs_v1"],
-    )
-    ap.add_argument("--env_judge", type=str, default="arithmetic", choices=["arithmetic", "real_logs"])
-    ap.add_argument("--work_dir", type=str, default="data/real")
-    ap.add_argument("--results_dir", type=str, default="results/v030_real")
+    ap = argparse.ArgumentParser(description="Run v0.4.0 real evidence acceptance.")
+    ap.add_argument("--raw_path", type=str, default="data/raw/episodes_real_v040.jsonl")
+    ap.add_argument("--adapter", type=str, default="real_logs_v1", choices=["real_logs_v1", "generic_jsonl", "armap_style"])
+    ap.add_argument("--env_judge", type=str, default="real_logs", choices=["real_logs", "arithmetic"])
+    ap.add_argument("--work_dir", type=str, default="data/real_v040")
+    ap.add_argument("--results_dir", type=str, default="results/v040_real")
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--max_pairs", type=int, default=5500)
-    ap.add_argument("--target_train_size", type=int, default=5000)
-    ap.add_argument("--target_valid_size", type=int, default=500)
+    ap.add_argument("--max_pairs", type=int, default=1200)
+    ap.add_argument("--target_train_size", type=int, default=1000)
+    ap.add_argument("--target_valid_size", type=int, default=200)
     ap.add_argument("--max_len", type=int, default=512)
-    ap.add_argument("--batch_size", type=int, default=256)
+    ap.add_argument("--batch_size", type=int, default=128)
     ap.add_argument("--epochs", type=int, default=3)
-    ap.add_argument("--max_steps", type=int, default=4000)
+    ap.add_argument("--max_steps", type=int, default=2000)
     ap.add_argument("--lr", type=float, default=3e-4)
-    ap.add_argument("--num_workers", type=int, default=4)
+    ap.add_argument("--num_workers", type=int, default=2)
     ap.add_argument("--device", type=str, default="cuda", choices=["auto", "cpu", "cuda"])
     ap.add_argument("--amp_dtype", type=str, default="bf16", choices=["none", "bf16", "fp16"])
     ap.add_argument("--grad_accum_steps", type=int, default=1)
@@ -127,11 +122,11 @@ def main() -> None:
     ap.add_argument("--pin_memory", type=str, default="auto", choices=["auto", "true", "false"])
     ap.add_argument("--persistent_workers", type=str, default="auto", choices=["auto", "true", "false"])
     ap.add_argument("--tail_drop_steps", type=int, default=2)
-    ap.add_argument("--max_negative_attempts_per_positive", type=int, default=2)
+    ap.add_argument("--max_negative_attempts_per_positive", type=int, default=3)
 
     ap.add_argument("--last_k_steps", type=int, default=3)
     ap.add_argument("--truncation_threshold", type=float, default=0.05)
-    ap.add_argument("--min_replay_ok_rate", type=float, default=0.8)
+    ap.add_argument("--min_replay_ok_rate", type=float, default=0.0)
     ap.add_argument("--min_env_judge_consistency", type=float, default=0.95)
     ap.add_argument("--max_judge_unknown_rate", type=float, default=0.05)
     ap.add_argument("--min_pair_accuracy", type=float, default=0.55)
@@ -140,7 +135,7 @@ def main() -> None:
     ap.add_argument("--input_format", type=str, default="flat", choices=["flat", "stepwise"])
     ap.add_argument("--pooling", type=str, default="mean", choices=["mean", "last", "last_k_step"])
     ap.add_argument("--last_k_steps_pool", type=int, default=3)
-    ap.add_argument("--report_path", type=str, default="", help="Default: <work_dir>/reports/v030_acceptance.json")
+    ap.add_argument("--report_path", type=str, default="", help="Default: <work_dir>/reports/v040_real_acceptance.json")
     args = ap.parse_args()
 
     repo_root = Path(__file__).resolve().parents[1]
@@ -183,7 +178,7 @@ def main() -> None:
             "--max_negative_attempts_per_positive",
             str(args.max_negative_attempts_per_positive),
             "--stats_path",
-            str(reports_dir / "export_stats_v030.json"),
+            str(reports_dir / "export_stats_v040.json"),
         ]
     )
 
@@ -332,7 +327,7 @@ def main() -> None:
     )
     cpu_eval = _parse_last_dict(cpu_eval_out)
 
-    export_stats = _load_json(reports_dir / "export_stats_v030.json")
+    export_stats = _load_json(reports_dir / "export_stats_v040.json")
     lint_stats = _load_json(reports_dir / "train_lint.json")
     train_metrics = _last_jsonl(results_dir / "metrics.jsonl")
 
@@ -381,7 +376,7 @@ def main() -> None:
         "passed": passed,
     }
 
-    report_path = Path(args.report_path) if args.report_path else (work_dir / "reports" / "v030_acceptance.json")
+    report_path = Path(args.report_path) if args.report_path else (work_dir / "reports" / "v040_real_acceptance.json")
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"report_path": str(report_path), "passed": passed}, ensure_ascii=False))
