@@ -302,3 +302,36 @@ Summary:
 - `stepwise + mean` is non-regressive vs `flat + mean`.
 - `stepwise + last_k_step` improves pair accuracy on this setup.
 - `max_len 512 -> 384` does not degrade pair accuracy in this run.
+
+## v0.3.2 Reference Run (2026-02-16, AutoDL 4090, Webshop-like Scaffold Smoke)
+
+- Date: 2026-02-16
+- Git commit hash: `c474f1a` (runtime branch baseline)
+- Host: AutoDL
+- Python version: 3.10 (`.venv`)
+- CUDA available: true
+- CUDA device count: 1
+- CUDA device model: NVIDIA GeForce RTX 4090
+- NVIDIA driver / CUDA (system): 560.35.03 / 12.6
+
+Data generation:
+- command:
+  - `python3 scripts/generate_webshop_like_sample.py --out_path data/raw/webshop_like_sample.jsonl --n_tasks 200 --rollouts_per_task 3 --seed 42`
+- output:
+  - `data/raw/webshop_like_sample.jsonl` with `600` episodes
+
+Scaffold smoke command:
+- `python3 scripts/build_pairs_v030.py --input_path data/raw/webshop_like_sample.jsonl --output_path data/webshop_like/pairs.unsanitized.jsonl --adapter webshop_like --max_pairs 500 --stats_path data/webshop_like/reports/export_stats_v030.json`
+
+Smoke outputs (`data/webshop_like/reports/export_stats_v030.json`):
+- `episodes_in = 600`
+- `success_candidates = 295`
+- `pairs_out = 295`
+- `neg_type_counts = {"truncate_last_k": 295}`
+- `neg_attempted_counts = {"replay_corrupt": 295, "swap_step": 295, "truncate_last_k": 295}`
+- `neg_replay_success_rate = 0.0`
+- `env_judge_consistency = 0.0`
+
+Interpretation:
+- Adapter + pair-construction path is functional for Webshop-like trajectory schema.
+- Arithmetic env judge is not expected to validate Webshop-like tasks, so fallback to `truncate_last_k` is expected in this lightweight scaffold phase.
