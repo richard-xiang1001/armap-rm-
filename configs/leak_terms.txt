@@ -1,0 +1,12 @@
+# One term per line. Lines starting with # are ignored.
+reward
+success
+done
+score
+completed
+task_success
+is_success
+final_reward
+episode_return
+correct
+incorrect
