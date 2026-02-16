@@ -251,3 +251,54 @@ Remote execution handbook:
 Note:
 - This record is a 4090 precheck run using generated `example_episodes_v030.jsonl`.
 - Official publication-grade evidence should additionally include a run with `data/raw/episodes_real.jsonl` once available.
+
+## v0.3.1 Reference Run (2026-02-16, AutoDL 4090, Input-Format/Pooling Ablation)
+
+- Date: 2026-02-16
+- Git commit hash: `c474f1a` (training run)
+- Host: AutoDL
+- Python version: 3.10 (`.venv`)
+- CUDA available: true
+- CUDA device count: 1
+- CUDA device model: NVIDIA GeForce RTX 4090
+- NVIDIA driver / CUDA (system): 560.35.03 / 12.6
+- Dataset path and size:
+  - train: `data/real_v030_precheck/train.jsonl` (5,000)
+  - valid: `data/real_v030_precheck/valid.jsonl` (500)
+- Common train settings:
+  - `epochs=3`, `max_steps=4000`, `batch_size=256`, `max_len=512`, `seed=42`, `device=cuda`, `amp_dtype=bf16`, `num_workers=4`
+
+Runs:
+- `flat + mean`:
+  - save dir: `results/v031_flat_mean_512`
+  - best valid `pair_accuracy = 0.582`
+- `stepwise + mean`:
+  - save dir: `results/v031_stepwise_mean_512`
+  - best valid `pair_accuracy = 0.582`
+- `stepwise + last_k_step (k=3)`:
+  - save dir: `results/v031_stepwise_lastk_512`
+  - best valid `pair_accuracy = 0.586`
+- truncation check (`stepwise + last_k_step`, `max_len=384`):
+  - save dir: `results/v031_stepwise_lastk_384`
+  - best valid `pair_accuracy = 0.588`
+
+Eval (same valid split, `num_workers=0`):
+- `results/v031_stepwise_lastk_512/rm.pt`, `max_len=512`:
+  - `pair_accuracy = 0.586`
+  - `avg_reward_gap = 0.008283441185951233`
+  - `gap_p10 = -0.03620664402842522`
+  - `gap_p50 = 0.006407078355550766`
+  - `gap_p90 = 0.05261464789509773`
+  - `n = 500`
+- `results/v031_stepwise_lastk_384/rm.pt`, `max_len=384`:
+  - `pair_accuracy = 0.588`
+  - `avg_reward_gap = 0.00826094126701355`
+  - `gap_p10 = -0.03577784076333046`
+  - `gap_p50 = 0.005827473476529121`
+  - `gap_p90 = 0.052338626235723495`
+  - `n = 500`
+
+Summary:
+- `stepwise + mean` is non-regressive vs `flat + mean`.
+- `stepwise + last_k_step` improves pair accuracy on this setup.
+- `max_len 512 -> 384` does not degrade pair accuracy in this run.
