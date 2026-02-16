@@ -4,6 +4,64 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog, and this project follows semantic versioning.
 
+## [v0.2.1] - 2026-02-16
+
+### Added
+
+- Added `scripts/run_v021_acceptance.py`:
+  - runs end-to-end acceptance for `5500 -> 5000/500` split
+  - validates strict gate metrics
+  - runs GPU and CPU eval on the same checkpoint/valid set
+  - computes parity diff and writes `v021_acceptance.json`
+
+### Changed
+
+- Enhanced `scripts/run_v020_pipeline.py` split controls:
+  - new `--valid_size` argument to request exact validation size
+  - ratio-based split now uses rounded size when `--valid_size` is not set
+- Updated docs with v0.2.1 acceptance command and report path:
+  - `README.md`
+  - `docs/reproducibility.md`
+
+## [v0.2.0] - 2026-02-16
+
+### Added
+
+- Added real-trajectory ingest pipeline:
+  - `ingest/adapters/generic_jsonl.py`
+  - `ingest/adapters/armap_style.py`
+  - `ingest/export_pairs.py` (same-task success/failure pairing + tail-truncation fallback negatives)
+  - `ingest/sanitize_traj.py` (leak masking + step marker normalization + audit report)
+- Added one-command end-to-end pipeline: `scripts/run_v020_pipeline.py`
+  - fixed order: `export_pairs -> sanitize -> lint gate -> train -> eval`
+- Added minimal de-identified real-like sample generator: `scripts/generate_real_episode_sample.py`
+- Added `docs/releases/v0.2.0.md` release note.
+
+### Changed
+
+- Extended `rm.train` CLI for GPU throughput and stability tuning:
+  - `--device {auto,cpu,cuda}`
+  - `--amp_dtype {none,bf16,fp16}` with bf16->fp16 fallback on unsupported GPUs
+  - `--grad_accum_steps`
+  - `--max_steps`
+  - `--pin_memory {auto,true,false}`
+  - `--prefetch_factor`
+  - `--persistent_workers {auto,true,false}`
+- Enhanced training logs (`metrics.jsonl`) with:
+  - `samples_per_sec`
+  - `tokens_per_sec`
+  - `amp_dtype_used`
+- Extended `scripts/lint_data.py` with strict truncation gate support:
+  - `--fail_on_truncation_risk`
+  - `--max_truncation_risk_last_k_steps`
+  - `--report_path`
+
+### Documentation
+
+- Updated `README.md` with v0.2.0 real-trajectory workflow and 4090 smoke command.
+- Updated `docs/training_details.md` with strict gate policy and ingest/sanitize workflow.
+- Updated `docs/reproducibility.md` with v0.2.0 4090/real-data reporting template and parity criteria.
+
 ## [v0.1.0] - 2026-02-16
 
 ### Added

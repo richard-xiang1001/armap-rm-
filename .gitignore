@@ -1,0 +1,12 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+
+# Local envs
+.venv/
+
+# Training artifacts
+results/
+
+# Generated datasets and reports
+data/

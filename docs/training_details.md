@@ -108,7 +108,10 @@ python3 scripts/lint_data.py \
 python3 scripts/lint_data.py \
   --path data/train.jsonl \
   --leak_terms_file configs/leak_terms.txt \
-  --fail_on_leak
+  --fail_on_leak \
+  --fail_on_missing \
+  --fail_on_truncation_risk \
+  --max_truncation_risk_last_k_steps 0.05
 ```
 
 ### 3.2 你后续迁移到真实环境（Webshop/你自研 env）时要补的字段
@@ -117,6 +120,31 @@ python3 scripts/lint_data.py \
 - `steps`: 结构化 step 列表（obs/action/metadata），并保留原始文本版本
 - `termination`: done / timeout / error
 - `env_success`: 由环境判定的成功标签（⚠️ 注意：训练输入里要剥离/掩码，避免泄漏）
+
+### 3.3 v0.2.0 真实轨迹接入流程（Episode JSONL）
+
+标准流程：
+
+1. 导出偏好对：`ingest/export_pairs.py`
+2. 轨迹清洗：`ingest/sanitize_traj.py`
+3. 严格 lint 门禁：`scripts/lint_data.py`
+4. 训练 + 评估：`rm.train` + `rm.eval`
+
+最小命令（示例）：
+
+```bash
+python3 ingest/export_pairs.py \
+  --input_path data/raw/example_episodes.jsonl \
+  --output_path data/real/pairs.unsanitized.jsonl \
+  --adapter generic_jsonl \
+  --stats_path data/real/reports/export_stats.json
+
+python3 ingest/sanitize_traj.py \
+  --input_path data/real/pairs.unsanitized.jsonl \
+  --output_path data/real/pairs.sanitized.jsonl \
+  --leak_terms_file configs/leak_terms.txt \
+  --audit_path data/real/reports/sanitize_audit.json
+```
 
 ---
 
@@ -148,11 +176,14 @@ python3 scripts/lint_data.py \
 ### 5.1 建议超参
 
 - `max_len`: 512（轨迹更长可上 1024）
-- `batch_size`: 64（显存不足用 16/32 + 梯度累积）
+- `batch_size`: 64（CPU）/ 256~512（4090）
 - `lr`: 3e-4（小模型）；若换成大 backbone，常见范围 1e-5 ~ 2e-4
 - `weight_decay`: 0.01
 - `epochs`: 3
 - `grad_clip`: 1.0
+- `grad_accum_steps`: 1~8（OOM 时提高）
+- `amp_dtype`: `bf16` 优先（不支持自动回退 `fp16`）
+- `num_workers`: 2~8（受限环境仍可 `0`）
 
 ### 5.2 训练命令
 
@@ -170,9 +201,29 @@ python3 -m rm.train \
   --seed 42
 ```
 
+4090 冒烟（200 step）：
+
+```bash
+python3 -m rm.train \
+  --train_path data/real/train.jsonl \
+  --valid_path data/real/valid.jsonl \
+  --save_dir results/v020_real \
+  --device cuda \
+  --amp_dtype bf16 \
+  --batch_size 256 \
+  --grad_accum_steps 1 \
+  --max_len 512 \
+  --max_steps 200 \
+  --num_workers 4 \
+  --pin_memory auto \
+  --prefetch_factor 2 \
+  --persistent_workers auto
+```
+
 训练会输出：
 - `results/exp1/metrics.jsonl`：每个 epoch 的 valid 指标
 - `results/exp1/rm.pt`：最优 checkpoint
+- `metrics.jsonl` 新增吞吐与 AMP 字段：`samples_per_sec`、`tokens_per_sec`、`amp_dtype_used`
 
 ---
 
@@ -220,12 +271,19 @@ python3 -m rm.eval --ckpt results/exp1/rm.pt --valid_path data/valid.jsonl --max
 - 轨迹输入前做 regex 清洗/掩码
 - 把环境返回的 reward/success 放在 `meta`，但不拼进 `traj_*` 文本
 
+v0.2.0 默认使用 `ingest/sanitize_traj.py` 做自动清洗，默认策略是“键值级 mask + 保留可读轨迹”。
+
 ### 7.2 长轨迹截断策略（建议写成可配置）
 
 简单截前 N tokens 可能截掉关键结尾。
 建议策略（按优先级）：
 - 保留末段 + 保留关键 action step
 - 或基于 step 边界做“按步截断”
+
+v0.2.0 的训练门禁默认阻断条件：
+- `missing_required_fields.rows_with_missing == 0`
+- `leak_hit_count == 0`
+- `truncation_risk_last_k_steps <= 0.05`
 
 ### 7.3 Hard Negatives 的比例
 
