@@ -1,17 +1,3 @@
-from __future__ import annotations
+from ingest.envs.protocol import CompareResult, EnvJudge, JudgeResult, compare_judgments
 
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Protocol
-
-
-@dataclass
-class JudgeResult:
-    success: Optional[bool]
-    replay_ok: bool
-    reason: str
-    extras: Dict
-
-
-class EnvJudge(Protocol):
-    def judge(self, instruction: str, steps: List[str], meta: Dict | None = None) -> JudgeResult:
-        ...
+__all__ = ["JudgeResult", "CompareResult", "EnvJudge", "compare_judgments"]

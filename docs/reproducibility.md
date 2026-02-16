@@ -335,3 +335,91 @@ Smoke outputs (`data/webshop_like/reports/export_stats_v030.json`):
 Interpretation:
 - Adapter + pair-construction path is functional for Webshop-like trajectory schema.
 - Arithmetic env judge is not expected to validate Webshop-like tasks, so fallback to `truncate_last_k` is expected in this lightweight scaffold phase.
+
+## v0.4.0 Acceptance Command (Real Evidence MVP)
+
+Run this acceptance script and archive its report:
+
+```bash
+python3 scripts/run_v040_real_acceptance.py \
+  --raw_path data/raw/episodes_real_v040.jsonl \
+  --adapter real_logs_v1 \
+  --env_judge real_logs \
+  --work_dir data/real_v040 \
+  --results_dir results/v040_real \
+  --max_pairs 1200 \
+  --target_train_size 1000 \
+  --target_valid_size 200 \
+  --max_len 512 \
+  --batch_size 128 \
+  --epochs 3 \
+  --max_steps 2000 \
+  --device cuda \
+  --amp_dtype bf16
+```
+
+Expected acceptance report path:
+- `data/real_v040/reports/v040_real_acceptance.json`
+
+v0.4.0 gate additions:
+- `judge_unknown_rate <= 0.05` (or temporarily `<= 0.10` for early real-log migration, documented in release notes)
+
+## v0.4.2 Ablation Command (neg/refine/format/pooling)
+
+```bash
+python3 scripts/run_ablation_v04x.py \
+  --raw_path data/raw/episodes_real_v040.jsonl \
+  --adapter real_logs_v1 \
+  --env_judge real_logs \
+  --work_dir data/ablation/v04x \
+  --results_dir results/ablation/v04x
+```
+
+Expected outputs:
+- `results/ablation/v04x/v04x_ablation.csv`
+- `results/ablation/v04x/v04x_ablation.md`
+
+## v0.4.0 Reference Runs (2026-02-16)
+
+### Release-grade attempt (blocked)
+
+- Command:
+  - `python3 scripts/run_v040_real_acceptance.py --raw_path data/raw/episodes_real_v040.jsonl --adapter real_logs_v1 --env_judge real_logs --work_dir data/real_v040 --results_dir results/v040_real --max_pairs 1200 --target_train_size 1000 --target_valid_size 200 --device cpu --amp_dtype none --epochs 1 --max_steps 50 --batch_size 64 --num_workers 0 --min_replay_ok_rate 0.0`
+- Blocker evidence:
+  - `data/real_v040/reports/export_stats_v040.json`: `pairs_trainable=31`
+  - `data/real_v040/reports/train_lint.json`: `env_judge_consistency=1.0`, `judge_unknown_rate=0.0`
+  - `data/real_v040/reports/v040_real_acceptance.json`: `passed=false` with only scale checks failing (`export_pairs_sufficient=false`, `split_train_exact=false`, `split_valid_exact=false`)
+  - `data/real_v040/reports/precheck_pairs_summary.json`: `LT_300_DATA_SCALE_BLOCKER`
+
+### Precheck run (non-release)
+
+- Command:
+  - `python3 scripts/run_v040_real_acceptance.py --raw_path data/raw/episodes_real_v040.jsonl --adapter real_logs_v1 --env_judge real_logs --work_dir data/real_v040_precheck --results_dir results/v040_real_precheck --max_pairs 31 --target_train_size 20 --target_valid_size 11 --device cpu --amp_dtype none --epochs 1 --max_steps 100 --batch_size 64 --num_workers 0 --min_replay_ok_rate 0.0 --min_env_judge_consistency 0.0 --max_judge_unknown_rate 1.0 --min_pair_accuracy 0.0 --min_gap_p50 -1.0`
+- Result:
+  - `data/real_v040_precheck/reports/v040_real_acceptance.json`: `passed=true`
+  - `pair_accuracy=1.0`, `gap_p50=0.003827570006251335`, `judge_unknown_rate=0.0`, parity diff `0.0`
+
+## v0.4.1 Protocol Migration Evidence (2026-02-16)
+
+- Arithmetic judge run:
+  - report: `data/v041_arithmetic/reports/v030_acceptance.json`
+  - `passed=true`, `judge_unknown_rate=0.0`, `env_judge_consistency=1.0`
+- Real-logs judge run:
+  - report: `data/v041_real_logs/reports/v030_acceptance.json`
+  - `passed=true`, `judge_unknown_rate=0.0`, `env_judge_consistency=1.0`
+
+## v0.4.2 Ablation Evidence (2026-02-16)
+
+- Command:
+  - `python3 scripts/run_ablation_v04x.py --raw_path data/raw/episodes_real_v040.jsonl --adapter real_logs_v1 --env_judge real_logs --work_dir data/ablation/v04x --results_dir results/ablation/v04x --max_pairs 31 --target_valid_size 11 --device cpu --amp_dtype none --epochs 1 --max_steps 30 --batch_size 64 --num_workers 0 --bucket_sampling true`
+- Outputs:
+  - `results/ablation/v04x/v04x_ablation.csv`
+  - `results/ablation/v04x/v04x_ablation.md`
+- Matrix summary:
+  - total `24` runs, `24` successful, `0` failed
+  - `truncate_last_k`: `8` success, mean `pair_accuracy=1.0`
+  - `swap_step`: `8` success, mean `pair_accuracy=0.6364` (primary weak bucket)
+  - `replay_corrupt`: `8` success, mean `pair_accuracy=1.0`
+- mismatch dumps:
+  - generated files: `24`
+  - non-empty mismatch files: `8` (all under `swap_step`)

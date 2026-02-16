@@ -195,6 +195,17 @@ def main() -> None:
         help="Threshold used with --fail_on_low_env_consistency.",
     )
     ap.add_argument(
+        "--fail_on_high_judge_unknown",
+        action="store_true",
+        help="Exit non-zero when judge_unknown_rate is too high.",
+    )
+    ap.add_argument(
+        "--max_judge_unknown_rate",
+        type=float,
+        default=1.0,
+        help="Threshold used with --fail_on_high_judge_unknown.",
+    )
+    ap.add_argument(
         "--report_path",
         type=str,
         default="",
@@ -232,6 +243,7 @@ def main() -> None:
     neg_replay_ok_count = 0
     env_consistency_rows = 0
     env_consistency_ok = 0
+    judge_unknown_rows = 0
 
     instr_lens: List[int] = []
     pos_lens: List[int] = []
@@ -303,6 +315,7 @@ def main() -> None:
                 replay_attempted_val = str(meta.get("neg_type", "")).strip().lower() == "replay_corrupt"
             replay_ok_val = parse_optional_bool(meta.get("replay_ok"))
             env_consistent_val = parse_optional_bool(meta.get("env_judge_consistent"))
+            judge_unknown_val = parse_optional_bool(meta.get("judge_unknown"))
 
             if replay_attempted_val:
                 neg_replay_attempted += 1
@@ -313,10 +326,13 @@ def main() -> None:
                 env_consistency_rows += 1
                 if env_consistent_val:
                     env_consistency_ok += 1
+            if judge_unknown_val is True:
+                judge_unknown_rows += 1
 
     n_rows = len(rows)
     neg_replay_success_rate = float(neg_replay_ok_count / max(neg_replay_attempted, 1))
     env_judge_consistency = float(env_consistency_ok / max(env_consistency_rows, 1))
+    judge_unknown_rate = float(judge_unknown_rows / max(n_rows, 1))
     report = {
         "path": str(path),
         "n_rows": n_rows,
@@ -348,6 +364,9 @@ def main() -> None:
         "env_judge_consistency": env_judge_consistency,
         "env_judge_consistency_rows": env_consistency_rows,
         "min_env_judge_consistency": args.min_env_judge_consistency,
+        "judge_unknown_rows": judge_unknown_rows,
+        "judge_unknown_rate": judge_unknown_rate,
+        "max_judge_unknown_rate": args.max_judge_unknown_rate,
     }
 
     if args.report_path:
@@ -370,6 +389,8 @@ def main() -> None:
     if args.fail_on_low_replay_ok and report["neg_replay_success_rate"] < args.min_replay_ok_rate:
         should_fail = True
     if args.fail_on_low_env_consistency and report["env_judge_consistency"] < args.min_env_judge_consistency:
+        should_fail = True
+    if args.fail_on_high_judge_unknown and report["judge_unknown_rate"] > args.max_judge_unknown_rate:
         should_fail = True
     if should_fail:
         sys.exit(1)

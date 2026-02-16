@@ -4,6 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import json
+from pathlib import Path
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -21,6 +24,7 @@ def main() -> None:
     ap.add_argument("--num_workers", type=int, default=2)
     ap.add_argument("--input_format", type=str, default="", choices=["", "flat", "stepwise"])
     ap.add_argument("--use_refined_instruction", type=str, default="", choices=["", "true", "false"])
+    ap.add_argument("--dump_mismatches", type=str, default="", help="Optional JSONL path for r_pos<=r_neg samples.")
     args = ap.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -61,6 +65,7 @@ def main() -> None:
     total = 0
     gap_sum = 0.0
     deltas = []
+    mismatches = []
 
     with torch.no_grad():
         for batch in loader:
@@ -79,6 +84,35 @@ def main() -> None:
             total += r_pos.numel()
             gap_sum += float(delta.sum())
             deltas.append(delta)
+
+            if args.dump_mismatches:
+                metas = batch.get("meta", [])
+                instructions = batch.get("instruction", [])
+                traj_pos = batch.get("traj_pos", [])
+                traj_neg = batch.get("traj_neg", [])
+                r_pos_cpu = r_pos.detach().cpu().numpy()
+                r_neg_cpu = r_neg.detach().cpu().numpy()
+                for i in range(len(delta)):
+                    if float(delta[i]) > 0.0:
+                        continue
+                    meta = metas[i] if i < len(metas) and isinstance(metas[i], dict) else {}
+                    mismatches.append(
+                        {
+                            "reward_pos": float(r_pos_cpu[i]),
+                            "reward_neg": float(r_neg_cpu[i]),
+                            "reward_gap": float(delta[i]),
+                            "instruction": instructions[i] if i < len(instructions) else "",
+                            "traj_pos": traj_pos[i] if i < len(traj_pos) else "",
+                            "traj_neg": traj_neg[i] if i < len(traj_neg) else "",
+                            "neg_type": meta.get("neg_type"),
+                            "task_id": meta.get("task_id"),
+                            "env": meta.get("env"),
+                            "judge_unknown": meta.get("judge_unknown"),
+                            "judge_unknown_reason": meta.get("judge_unknown_reason"),
+                            "env_judge_consistent": meta.get("env_judge_consistent"),
+                            "judge_protocol_version": meta.get("judge_protocol_version"),
+                        }
+                    )
 
     pair_acc = correct / max(total, 1)
     avg_gap = gap_sum / max(total, 1)
@@ -101,6 +135,13 @@ def main() -> None:
             "n": total,
         }
     )
+
+    if args.dump_mismatches:
+        out_path = Path(args.dump_mismatches)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w", encoding="utf-8") as f:
+            for row in mismatches:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
 if __name__ == "__main__":

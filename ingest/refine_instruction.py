@@ -50,6 +50,9 @@ def refine_instruction_rule(instruction_raw: str, steps: List[str] | None = None
 
 
 def refine_instruction(instruction_raw: str, steps: List[str] | None = None, mode: str = "rule") -> Tuple[str, Dict]:
+    if mode == "off":
+        raw = " ".join(str(instruction_raw or "").strip().split())
+        return raw, {"mode": "off", "changed": False, "reason": "disabled"}
     if mode != "rule":
         raise ValueError(f"Unsupported refine mode: {mode}")
     return refine_instruction_rule(instruction_raw=instruction_raw, steps=steps)

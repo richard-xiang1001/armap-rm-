@@ -3,25 +3,27 @@ from __future__ import annotations
 import random
 from typing import Dict, List
 
+from ingest.envs.protocol import EnvJudge
 from ingest.negatives import replay_corrupt, swap_step, truncate
 
 
 NEG_ORDER = ("replay_corrupt", "swap_step", "truncate_last_k")
 
 
-def _run_generator(name: str, episode: Dict, rng: random.Random, tail_drop_steps: int) -> Dict | None:
+def _run_generator(name: str, episode: Dict, rng: random.Random, env_judge: EnvJudge, tail_drop_steps: int) -> Dict | None:
     if name == "replay_corrupt":
-        return replay_corrupt.generate(episode=episode, rng=rng)
+        return replay_corrupt.generate(episode=episode, rng=rng, env_judge=env_judge)
     if name == "swap_step":
-        return swap_step.generate(episode=episode, rng=rng)
+        return swap_step.generate(episode=episode, rng=rng, env_judge=env_judge)
     if name == "truncate_last_k":
-        return truncate.generate(episode=episode, rng=rng, tail_drop_steps=tail_drop_steps)
+        return truncate.generate(episode=episode, rng=rng, env_judge=env_judge, tail_drop_steps=tail_drop_steps)
     raise ValueError(f"Unknown negative generator: {name}")
 
 
 def generate_negative_with_fallback(
     episode: Dict,
     rng: random.Random,
+    env_judge: EnvJudge,
     tail_drop_steps: int = 2,
     max_attempts: int = 2,
     forced_neg_type: str = "",
@@ -45,7 +47,13 @@ def generate_negative_with_fallback(
             break
         tries += 1
         attempted.append(neg_name)
-        generated = _run_generator(name=neg_name, episode=episode, rng=rng, tail_drop_steps=tail_drop_steps)
+        generated = _run_generator(
+            name=neg_name,
+            episode=episode,
+            rng=rng,
+            env_judge=env_judge,
+            tail_drop_steps=tail_drop_steps,
+        )
         if generated is None:
             continue
 
@@ -62,7 +70,17 @@ def generate_negative_with_fallback(
 
     # Last fallback: force truncate and return whatever we can get.
     if not forced_neg_type:
-        generated = _run_generator(name="truncate_last_k", episode=episode, rng=rng, tail_drop_steps=tail_drop_steps)
+        if attempted and attempted[-1] == "truncate_last_k" and generated is not None:
+            generated["attempted_neg_types"] = attempted
+            generated["replay_attempted"] = "replay_corrupt" in attempted
+            return generated
+        generated = _run_generator(
+            name="truncate_last_k",
+            episode=episode,
+            rng=rng,
+            env_judge=env_judge,
+            tail_drop_steps=tail_drop_steps,
+        )
         if generated is not None:
             attempted.append("truncate_last_k")
             generated["attempted_neg_types"] = attempted

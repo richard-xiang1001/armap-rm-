@@ -4,7 +4,7 @@ import ast
 import re
 from typing import Dict, List, Optional
 
-from ingest.envs.base import JudgeResult
+from ingest.envs.protocol import EnvJudge, JudgeResult
 
 
 _COMPUTE_EXPR_PATTERN = re.compile(r"(?i)\bcompute\s+([^\.\?]+)")
@@ -112,12 +112,12 @@ def parse_success_flag(steps: List[str]) -> Optional[bool]:
 def judge_arithmetic_episode(instruction: str, steps: List[str], meta: Dict | None = None) -> JudgeResult:
     target, info = parse_target_from_instruction(instruction)
     if target is None:
-        return JudgeResult(success=None, replay_ok=False, reason="target_parse_failed", extras=info)
+        return JudgeResult(success=None, terminal=None, score=None, replay_ok=False, reason="target_parse_failed", extras=info)
 
     final_value, final_idx = parse_final_from_steps(steps)
     if final_value is None:
         extras = {**info, "target": target, "final": None}
-        return JudgeResult(success=False, replay_ok=True, reason="final_missing", extras=extras)
+        return JudgeResult(success=False, terminal=False, score=0.0, replay_ok=True, reason="final_missing", extras=extras)
 
     non_empty = [str(x).strip() for x in steps if str(x).strip()]
     final_is_last = bool(non_empty and _FINAL_PATTERN.match(non_empty[-1]))
@@ -145,4 +145,19 @@ def judge_arithmetic_episode(instruction: str, steps: List[str], meta: Dict | No
         "success_flag_ok": success_flag_ok,
         "structure_ok": structure_ok,
     }
-    return JudgeResult(success=judged_success, replay_ok=True, reason=reason, extras=extras)
+    return JudgeResult(
+        success=judged_success,
+        terminal=final_is_last,
+        score=1.0 if judged_success else 0.0,
+        replay_ok=True,
+        reason=reason,
+        extras=extras,
+    )
+
+
+class ArithmeticEnvJudge(EnvJudge):
+    name = "arithmetic"
+    protocol_version = "v0.4.1"
+
+    def judge(self, instruction: str, steps: List[str], meta: Dict | None = None) -> JudgeResult:
+        return judge_arithmetic_episode(instruction=instruction, steps=steps, meta=meta)

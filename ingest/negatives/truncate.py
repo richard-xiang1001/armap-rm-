@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from typing import Dict, List
 
-from ingest.envs.arithmetic_env import judge_arithmetic_episode
+from ingest.envs.protocol import EnvJudge
 
 
 def _truncate_tail(steps: List[str], drop_steps: int) -> List[str] | None:
@@ -16,7 +16,7 @@ def _truncate_tail(steps: List[str], drop_steps: int) -> List[str] | None:
     return out
 
 
-def generate(episode: Dict, rng: random.Random, tail_drop_steps: int = 2) -> Dict | None:
+def generate(episode: Dict, rng: random.Random, env_judge: EnvJudge, tail_drop_steps: int = 2) -> Dict | None:
     """Tail truncation fallback negative with env judge metadata."""
 
     instruction = str(episode.get("instruction_refined") or episode.get("instruction_raw") or "")
@@ -29,13 +29,18 @@ def generate(episode: Dict, rng: random.Random, tail_drop_steps: int = 2) -> Dic
     if not neg_steps:
         return None
 
-    judge = judge_arithmetic_episode(instruction=instruction, steps=neg_steps, meta=episode.get("raw_meta"))
-    replay_ok = judge.replay_ok and judge.success is False
+    raw_meta = dict(episode.get("raw_meta") or {})
+    raw_meta["generated_negative"] = True
+    raw_meta["success"] = False
+    judge = env_judge.judge(instruction=instruction, steps=neg_steps, meta=raw_meta)
+    replay_ok = bool(judge.replay_ok) and judge.success is False
     return {
         "steps": neg_steps,
         "neg_type": "truncate_last_k",
         "replay_ok": bool(replay_ok),
         "env_judge_neg": judge.success,
+        "env_judge_terminal": judge.terminal,
+        "env_judge_score": judge.score,
         "judge_reason": judge.reason,
         "judge_extras": judge.extras,
     }

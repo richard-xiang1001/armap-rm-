@@ -93,6 +93,17 @@ def _sanitize_text(text: str, terms: List[str]) -> Tuple[str, int, int]:
     sanitized = text
     pattern_masks = 0
     term_masks = 0
+    json_value_masks = 0
+
+    # Value-only mask for key-value fields while keeping key names for auditability.
+    key_union = "|".join(re.escape(t) for t in terms if t)
+    if key_union:
+        kv_pattern = re.compile(
+            rf"(?i)(\\b(?:{key_union})\\b\\s*[:=]\\s*)(\"[^\"]*\"|'[^']*'|[-+]?\\d+(?:\\.\\d+)?|true|false|null)"
+        )
+        sanitized, n = kv_pattern.subn(r"\1[MASK]", sanitized)
+        json_value_masks += n
+
     for pattern, replacement in STRUCTURED_PATTERNS:
         sanitized, n = pattern.subn(replacement, sanitized)
         pattern_masks += n
@@ -100,7 +111,7 @@ def _sanitize_text(text: str, terms: List[str]) -> Tuple[str, int, int]:
         escaped = re.escape(term)
         sanitized, n = re.subn(escaped, "[MASK]", sanitized, flags=re.IGNORECASE)
         term_masks += n
-    return sanitized, pattern_masks, term_masks
+    return sanitized, pattern_masks + json_value_masks, term_masks
 
 
 def sanitize_file(
@@ -116,7 +127,9 @@ def sanitize_file(
     rows_masked = 0
     total_pattern_masks = 0
     total_term_masks = 0
+    total_masked_fragments = 0
     field_mask_counts = {"instruction_refined": 0, "traj_pos": 0, "traj_neg": 0}
+    mask_type_counts = {"structured_pattern": 0, "term": 0}
 
     out_path = Path(output_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -136,10 +149,13 @@ def sanitize_file(
                 field_mask_counts[field] += n_pattern + n_term
                 total_pattern_masks += n_pattern
                 total_term_masks += n_term
+                mask_type_counts["structured_pattern"] += n_pattern
+                mask_type_counts["term"] += n_term
                 row_masks += n_pattern + n_term
 
             if row_masks > 0:
                 rows_masked += 1
+                total_masked_fragments += row_masks
 
             if drop_empty_rows and (not str(row.get("traj_pos", "")).strip() or not str(row.get("traj_neg", "")).strip()):
                 rows_dropped += 1
@@ -166,7 +182,10 @@ def sanitize_file(
         "rows_masked": rows_masked,
         "total_pattern_masks": total_pattern_masks,
         "total_term_masks": total_term_masks,
+        "mask_type_counts": mask_type_counts,
         "field_mask_counts": field_mask_counts,
+        "masked_field_ratio": float(rows_masked / max(rows_in, 1)),
+        "masked_value_ratio": float(total_masked_fragments / max(rows_out, 1)),
         "sample_keep_ratio": float(rows_out / max(rows_in, 1)),
         "leak_terms": leak_terms,
     }
@@ -211,4 +230,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

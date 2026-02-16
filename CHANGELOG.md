@@ -4,6 +4,92 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog, and this project follows semantic versioning.
 
+## [v0.4.2] - 2026-02-16
+
+### Added
+
+- Added v0.4.x ablation runner:
+  - `scripts/run_ablation_v04x.py`
+  - dimensions: `neg_type`, `refine_mode`, `input_format`, `pooling`
+- Added mismatch export for eval debugging:
+  - `rm/eval.py --dump_mismatches`
+- Added bucket sampling support:
+  - `rm/data.py` (bucket weights/sampler)
+  - `rm/train.py --bucket_sampling`
+- Release note: `docs/releases/v0.4.2.md`
+
+### Changed
+
+- Hard-negative construction strengthened:
+  - `replay_corrupt`: prioritizes late-step and key-parameter perturbation
+  - `swap_step`: adjacent-step constrained swaps for more plausible failures
+- Published v0.4.2 ablation evidence paths:
+  - `results/ablation/v04x/v04x_ablation.csv`
+  - `results/ablation/v04x/v04x_ablation.md`
+- Updated v0.4.2 evidence summary after rerun:
+  - all 24/24 ablation runs now complete successfully
+  - mismatch concentration identified in `swap_step` runs (8 non-empty mismatch files)
+
+## [v0.4.1] - 2026-02-16
+
+### Added
+
+- Added env judge protocol:
+  - `ingest/envs/protocol.py`
+  - `JudgeResult` + `CompareResult` + `compare_judgments(...)`
+- Added judge registry:
+  - `ingest/envs/registry.py`
+  - `get_env_judge(...)`
+- Added real logs judge implementation:
+  - `ingest/envs/real_logs_env.py`
+- Release note: `docs/releases/v0.4.1.md`
+
+### Changed
+
+- Refactored negative generators to injected env judge (no hard-coded arithmetic judge):
+  - `ingest/negatives/{replay_corrupt.py,swap_step.py,truncate.py,registry.py}`
+- Extended pair meta with protocol fields:
+  - `judge_unknown`, `judge_unknown_reason`, `judge_protocol_version`
+- Added dual-judge migration evidence reports:
+  - `data/v041_arithmetic/reports/v030_acceptance.json`
+  - `data/v041_real_logs/reports/v030_acceptance.json`
+- Refreshed protocol migration evidence:
+  - both judge runs now satisfy strict unknown/consistency gates (`judge_unknown_rate=0.0`, `env_judge_consistency=1.0`)
+
+## [v0.4.0] - 2026-02-16
+
+### Added
+
+- Added real logs adapter:
+  - `ingest/adapters/real_logs_v1.py`
+- Added v0.4.0 real evidence acceptance runner:
+  - `scripts/run_v040_real_acceptance.py`
+- Added real-log sample generator:
+  - `scripts/generate_real_logs_v040_sample.py`
+- Added release notes:
+  - `docs/releases/v0.4.0.md`
+
+### Changed
+
+- Updated pair builder and acceptance flow:
+  - `scripts/build_pairs_v030.py` now supports `--env_judge`
+  - emits `pairs.all.jsonl` + `pairs.trainable.jsonl` workflow
+- Extended lint gates:
+  - `judge_unknown_rate`
+  - `--fail_on_high_judge_unknown --max_judge_unknown_rate`
+- Enhanced sanitize audit:
+  - key-value masking support
+  - `mask_type_counts`, `masked_field_ratio`, `masked_value_ratio`
+- Updated reproducibility doc with v0.4.0/v0.4.2 commands:
+  - `docs/reproducibility.md`
+- Recorded release-blocker evidence and precheck evidence:
+  - blocker: `data/real_v040/reports/{export_stats_v040.json,train_lint.json}`
+  - precheck: `data/real_v040_precheck/reports/v040_real_acceptance.json`
+- Added explicit scale-blocker decision artifact:
+  - `data/real_v040/reports/precheck_pairs_summary.json` (`LT_300_DATA_SCALE_BLOCKER`)
+- Updated release note/reproducibility narrative:
+  - blocker is now documented as data scale only (quality gates green on current sample)
+
 ## [v0.3.2] - 2026-02-16
 
 ### Added
