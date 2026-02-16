@@ -89,6 +89,9 @@ The format is based on Keep a Changelog, and this project follows semantic versi
   - `data/real_v040/reports/precheck_pairs_summary.json` (`LT_300_DATA_SCALE_BLOCKER`)
 - Updated release note/reproducibility narrative:
   - blocker is now documented as data scale only (quality gates green on current sample)
+- Revalidated on AutoDL 4090 with release-grade command:
+  - blocker remains data scale only (`pairs_trainable=31`)
+  - quality gates unchanged and passing (`judge_unknown_rate=0.0`, `env_judge_consistency=1.0`)
 
 ## [v0.3.2] - 2026-02-16
 
