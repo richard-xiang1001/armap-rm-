@@ -423,3 +423,24 @@ Expected outputs:
 - mismatch dumps:
   - generated files: `24`
   - non-empty mismatch files: `8` (all under `swap_step`)
+
+### 4090 retry on full release-grade command (2026-02-16)
+
+- Host: AutoDL RTX 4090
+- Command:
+  - `python3 scripts/run_v040_real_acceptance.py --raw_path data/raw/episodes_real_v040.jsonl --adapter real_logs_v1 --env_judge real_logs --work_dir data/real_v040 --results_dir results/v040_real --max_pairs 1200 --target_train_size 1000 --target_valid_size 200 --device cuda --amp_dtype bf16`
+- Report:
+  - `data/real_v040/reports/v040_real_acceptance.json`
+- Outcome:
+  - `passed=false`
+  - failed checks: `export_pairs_sufficient`, `split_train_exact`, `split_valid_exact`
+- Scale evidence:
+  - `pairs_trainable=31` (target >= 1200)
+- Quality evidence:
+  - `judge_unknown_rate=0.0`
+  - `env_judge_consistency=1.0`
+  - `pair_accuracy=1.0`
+  - `gap_p50≈0.004`
+  - parity diff `<=0.03`
+- Final status:
+  - `LT_300_DATA_SCALE_BLOCKER` (release-grade still pending larger real logs)
