@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog, and this project follows semantic versioning.
 
+## [v0.2.2] - 2026-02-16
+
+### Changed
+
+- Documentation and release alignment only (no training/data-pipeline behavior changes):
+  - Added v0.2.1 acceptance-closure summary to `README.md`.
+  - Recorded v0.2.1 reference-run and metric-interpretation notes in docs.
+  - Published `docs/releases/v0.2.2.md` to keep release tag content aligned with latest docs.
+
 ## [v0.2.1] - 2026-02-16
 
 ### Added

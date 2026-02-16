@@ -2,6 +2,12 @@
 
 This repo provides a **minimal runnable** text-only Reward Model (RM) training pipeline inspired by **ARMAP: Scaling Autonomous Agents via Automatic Reward Modeling and Planning**.
 
+v0.2.1 acceptance reference (AutoDL RTX 4090) has validated this end-to-end guarantee:
+- real trajectories -> export/sanitize -> strict lint gate (`missing=0`, `leak=0`, `truncation=0`)
+- lightweight bf16 GPU training -> eval (`pair_accuracy>0.55`, `gap_p50>0`)
+- CPU/GPU parity check on the same checkpoint and validation split (`abs(diff)<=0.03`, observed `0.0`)
+- acceptance artifact report: `data/real/reports/v021_acceptance.json` with `passed=true`
+
 Scope (this repro):
 - ✅ Build an RM that scores (instruction, trajectory) pairs.
 - ✅ Train with **pairwise preference loss** on (pos, neg) trajectory pairs.
