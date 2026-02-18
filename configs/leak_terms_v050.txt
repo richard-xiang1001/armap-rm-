@@ -1,0 +1,18 @@
+# v0.5.x shortcut/leakage terms (keep v0.4 terms file unchanged)
+reward
+success
+done
+score
+completed
+task_success
+is_success
+final_reward
+episode_return
+correct
+incorrect
+done_reason
+goal_satisfied
+wrong_answer
+invalid_action
+constraint_violation
+timeout_step_cap

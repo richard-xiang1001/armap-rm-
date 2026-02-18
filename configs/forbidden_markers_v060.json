@@ -1,0 +1,28 @@
+{
+  "version": "v1",
+  "hard_leak_markers": [
+    "target:",
+    "target=",
+    "eval_logs:",
+    "eval_logs=",
+    "exit_status:",
+    "exit_status=",
+    "resolved=true",
+    "resolved=false",
+    "tests passed",
+    "tests failed",
+    "all tests passed"
+  ],
+  "soft_marker_audit": [
+    "passed",
+    "failed",
+    "error",
+    "traceback",
+    "exception",
+    "timeout",
+    "patch applied",
+    "patch rejected",
+    "issue resolved",
+    "issue fixed"
+  ]
+}
