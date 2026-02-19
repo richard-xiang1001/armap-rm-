@@ -4,6 +4,82 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog, and this project follows semantic versioning.
 
+## [v0.6.5] - 2026-02-19
+
+### Added
+
+- Added v0.6.5 bootstrap scripts:
+  - `scripts/build_v065_bootstrap_pairs.py`
+  - `scripts/run_v065_bootstrap_rounds.py`
+- Added paid-run preflight and run-state freeze helpers:
+  - `scripts/preflight_v065_4090.py`
+  - `scripts/freeze_v065_run_state.sh`
+- Added v0.6.5 release note:
+  - `docs/releases/v0.6.5.md`
+
+## [v0.6.4] - 2026-02-19
+
+### Added
+
+- Added v0.6.4 M1/M2 orchestration scripts:
+  - `scripts/run_v063_m1_main.py`
+  - `scripts/run_v064_scaling_matrix.py`
+  - `scripts/summarize_v064_scaling.py`
+- Added v0.6.4 release note:
+  - `docs/releases/v0.6.4.md`
+
+## [v0.6.3] - 2026-02-19
+
+### Added
+
+- Added SWE real online env and Docker executor:
+  - `online/envs/swe_real_env.py`
+  - `online/executors/swebench_lite.py`
+  - `online/executors/__init__.py`
+- Added v0.6.3 scripts:
+  - `scripts/build_v063_task_manifest.py`
+  - `scripts/run_v063_swe_bon_online.py`
+  - `scripts/run_v063_online_matrix.py`
+- Added v0.6.3 release note:
+  - `docs/releases/v0.6.3.md`
+
+### Changed
+
+- Extended online env abstract interface:
+  - `online/envs/base.py` now includes `get_task_context()` and `get_terminal_success()`
+- Extended v0.6.2 online eval/summary with executor-health metrics and gates:
+  - `scripts/eval_v062_online.py`
+  - `scripts/summarize_v062_online.py`
+- Updated SWE adapter compatibility for prepared JSONL with `raw_meta`:
+  - `ingest/adapters/swe_agent_v060.py`
+- Updated docs:
+  - `README.md`
+  - `docs/reproducibility.md`
+
+## [v0.6.2] - 2026-02-19
+
+### Added
+
+- Added online planning package (simulated closed loop):
+  - `online/envs/base.py`
+  - `online/envs/swe_sim_env.py`
+  - `online/policy/propose.py`
+  - `online/rm/value.py`
+  - `online/planners/bon.py`
+- Added v0.6.2 scripts:
+  - `scripts/run_v062_swe_bon_online.py`
+  - `scripts/eval_v062_online.py`
+  - `scripts/summarize_v062_online.py`
+  - `scripts/run_v062_online_matrix.py`
+- Added v0.6.2 release note:
+  - `docs/releases/v0.6.2.md`
+
+### Changed
+
+- Updated docs with v0.6.2 commands and gate definitions:
+  - `README.md`
+  - `docs/reproducibility.md`
+
 ## [v0.6.1] - 2026-02-19
 
 ### Added
