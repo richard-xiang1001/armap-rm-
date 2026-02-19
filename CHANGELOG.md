@@ -4,6 +4,70 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog, and this project follows semantic versioning.
 
+## [v0.6.1] - 2026-02-19
+
+### Added
+
+- Added SWE Phase1+ matrix runner:
+  - `scripts/run_v061_swe_phase1_plus_matrix.py`
+- Added SWE planning single-run evaluator and matrix aggregator:
+  - `scripts/run_v061_swe_planning_eval.py`
+  - `scripts/run_v061_swe_planning_matrix.py`
+  - `scripts/summarize_v061_swe_planning_matrix.py`
+- Added SWE candidate scorer for single-trajectory RM inference:
+  - `scripts/score_v061_swe_candidates.py`
+- Added v0.6.1 release note:
+  - `docs/releases/v0.6.1.md`
+
+### Changed
+
+- Hardened SWE planning eval outputs:
+  - mixed/all slice metrics in report payload
+  - bootstrap CI fields for `delta_rm_vs_best_baseline`
+  - per-seed and aggregate matrix verdict support
+- Recorded v0.6.1 evidence package and checksum in release note:
+  - `/Users/xiangruichao/Desktop/v061_evidence_20260219_091207.tgz`
+  - `sha256=eb6c0c0e87d520d17566dec76db8a153623bfb7afa51e439bfbc1220cbe40972`
+
+## [v0.6.0] - 2026-02-18
+
+### Added
+
+- Added SWE-agent local JSONL adapter:
+  - `ingest/adapters/swe_agent_v060.py`
+- Added SWE logs env judge (tri-state):
+  - `ingest/envs/swe_logs_env.py`
+- Added v0.6.0 runners:
+  - `scripts/run_v060_swe_precheck.py`
+  - `scripts/run_v060_swe_acceptance.py`
+- Added data license boundary doc:
+  - `docs/data_licenses.md`
+
+### Changed
+
+- Extended env judge registry:
+  - `ingest/envs/registry.py` now supports `swe_logs`
+- Extended pair construction:
+  - `scripts/build_pairs_v030.py`
+  - new `--pair_source_mode {generated_only,same_task_or_generated}`
+  - new adapter choice: `swe_agent_v060`
+  - pair meta now records shortcut-audit features:
+    - `pair_source`
+    - `pos/neg_steps_len`, `steps_len_delta_abs`
+    - `pos/neg_patch_len`, `patch_len_delta_abs`
+    - `pos/neg_tool_calls`, `tool_calls_delta_abs`
+- Extended lint shortcut audit:
+  - `scripts/lint_data.py`
+  - new report metrics:
+    - `steps_delta_abs_p50/p90`
+    - `patch_delta_abs_p50/p90`
+    - `tool_calls_delta_abs_p50/p90`
+  - new gate:
+    - `--fail_on_shortcut_length --max_steps_delta_abs_p90`
+- Updated docs:
+  - `README.md`
+  - `docs/reproducibility.md`
+
 ## [v0.4.2] - 2026-02-16
 
 ### Added
